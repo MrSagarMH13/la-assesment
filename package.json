@@ -1,0 +1,58 @@
+{
+  "name": "timetable-extraction-api",
+  "version": "1.0.0",
+  "description": "AI-powered timetable extraction API for teachers",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "dev:worker": "ts-node-dev --respawn --transpile-only src/worker.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "worker": "node dist/worker.js",
+    "start:all": "concurrently \"npm run start\" \"npm run worker\"",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prisma:generate": "prisma generate",
+    "prisma:push": "prisma db push",
+    "prisma:migrate": "prisma migrate dev"
+  },
+  "keywords": [
+    "timetable",
+    "extraction",
+    "ocr",
+    "llm"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.65.0",
+    "@aws-sdk/client-s3": "^3.901.0",
+    "@aws-sdk/client-sqs": "^3.901.0",
+    "@bull-board/api": "^6.13.0",
+    "@bull-board/express": "^6.13.0",
+    "@google-cloud/documentai": "^9.4.0",
+    "@prisma/client": "^6.16.3",
+    "bullmq": "^5.60.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "ioredis": "^5.8.0",
+    "mammoth": "^1.11.0",
+    "multer": "^2.0.2",
+    "pdf-parse": "^2.1.6",
+    "prisma": "^6.16.3",
+    "sharp": "^0.34.4",
+    "tesseract.js": "^6.0.1",
+    "winston": "^3.18.3",
+    "zod": "^4.1.11"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/multer": "^2.0.0",
+    "@types/node": "^24.6.2",
+    "@types/pdf-parse": "^1.1.5",
+    "concurrently": "^9.2.1",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.9.3"
+  }
+}

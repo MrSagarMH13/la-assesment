@@ -1,0 +1,149 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: timetable-db
+    environment:
+      POSTGRES_USER: timetable_user
+      POSTGRES_PASSWORD: timetable_password
+      POSTGRES_DB: timetable_extraction
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U timetable_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis (for caching and BullMQ if needed)
+  redis:
+    image: redis:7-alpine
+    container_name: timetable-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # LocalStack (for local AWS services - S3, SQS)
+  localstack:
+    image: localstack/localstack:latest
+    container_name: timetable-localstack
+    ports:
+      - "4566:4566"  # LocalStack edge port
+      - "4510-4559:4510-4559"  # External service ports
+    environment:
+      - SERVICES=s3,sqs
+      - DEBUG=1
+      - DATA_DIR=/tmp/localstack/data
+      - AWS_DEFAULT_REGION=us-east-1
+    volumes:
+      - localstack_data:/tmp/localstack
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # API Server
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: timetable-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgresql://timetable_user:timetable_password@postgres:5432/timetable_extraction
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_S3_BUCKET=timetable-uploads
+      - AWS_SQS_QUEUE_URL=http://localstack:4566/000000000000/timetable-extraction-queue
+      - AWS_SQS_DLQ_URL=http://localstack:4566/000000000000/timetable-extraction-dlq
+      - AWS_ENDPOINT_URL=http://localstack:4566  # For LocalStack
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GOOGLE_PROJECT_ID=${GOOGLE_PROJECT_ID}
+      - GOOGLE_LOCATION=${GOOGLE_LOCATION}
+      - GOOGLE_PROCESSOR_ID=${GOOGLE_PROCESSOR_ID}
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
+      - USE_DOCUMENT_AI=true
+      - USE_CLAUDE_FALLBACK=true
+      - USE_HYBRID_MODE=true
+    volumes:
+      - ./src:/app/src
+      - ./uploads:/app/uploads
+    command: npm run dev
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/v2/timetable/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Worker Service
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: timetable-worker
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://timetable_user:timetable_password@postgres:5432/timetable_extraction
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_S3_BUCKET=timetable-uploads
+      - AWS_SQS_QUEUE_URL=http://localstack:4566/000000000000/timetable-extraction-queue
+      - AWS_SQS_DLQ_URL=http://localstack:4566/000000000000/timetable-extraction-dlq
+      - AWS_ENDPOINT_URL=http://localstack:4566  # For LocalStack
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GOOGLE_PROJECT_ID=${GOOGLE_PROJECT_ID}
+      - GOOGLE_LOCATION=${GOOGLE_LOCATION}
+      - GOOGLE_PROCESSOR_ID=${GOOGLE_PROCESSOR_ID}
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
+      - WORKER_CONCURRENCY=5
+      - MAX_RETRIES=3
+      - RETRY_DELAY=5000
+      - USE_DOCUMENT_AI=true
+      - USE_CLAUDE_FALLBACK=true
+      - USE_HYBRID_MODE=true
+    volumes:
+      - ./src:/app/src
+      - ./uploads:/app/uploads
+    command: npm run dev:worker
+    deploy:
+      replicas: 2  # Run multiple worker instances
+
+volumes:
+  postgres_data:
+  redis_data:
+  localstack_data:

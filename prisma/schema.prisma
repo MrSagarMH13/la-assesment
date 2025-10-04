@@ -1,0 +1,133 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model ExtractionJob {
+  id              String    @id @default(uuid())
+  status          String    @default("pending") // pending, processing, completed, failed
+  userId          String?
+  fileUrl         String    // S3 URL
+  originalFileName String
+  fileSize        Int
+  mimeType        String
+
+  // Metadata
+  teacherName     String?
+  className       String?
+
+  // Processing
+  processingMethod String?  // document_ai, claude, hybrid
+  complexity      String?   // simple, medium, complex
+
+  // Results
+  timetableId     String?   @unique
+  resultUrl       String?   // S3 URL for result JSON
+  errorMessage    String?
+  retryCount      Int       @default(0)
+  maxRetries      Int       @default(3)
+
+  // Timestamps
+  createdAt       DateTime  @default(now())
+  startedAt       DateTime?
+  completedAt     DateTime?
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  timetable       Timetable? @relation(fields: [timetableId], references: [id])
+  webhooks        Webhook[]
+  retryLogs       RetryLog[]
+
+  @@index([status])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model Webhook {
+  id              String    @id @default(uuid())
+  jobId           String
+  url             String
+  attempts        Int       @default(0)
+  maxAttempts     Int       @default(3)
+  delivered       Boolean   @default(false)
+  lastAttemptAt   DateTime?
+  deliveredAt     DateTime?
+  errorMessage    String?
+  createdAt       DateTime  @default(now())
+
+  job             ExtractionJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@index([delivered])
+}
+
+model RetryLog {
+  id              String    @id @default(uuid())
+  jobId           String
+  attemptNumber   Int
+  errorMessage    String
+  errorType       String?   // ocr_error, llm_error, validation_error, etc.
+  stackTrace      String?
+  createdAt       DateTime  @default(now())
+
+  job             ExtractionJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+}
+
+model Timetable {
+  id              String        @id @default(uuid())
+  teacherId       String?
+  teacherName     String?
+  className       String?
+  term            String?
+  week            String?
+  uploadedFileUrl String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  timeBlocks      TimeBlock[]
+  recurringBlocks RecurringBlock[]
+  extractionJob   ExtractionJob?
+}
+
+model TimeBlock {
+  id          String    @id @default(uuid())
+  timetableId String
+  day         String
+  startTime   String
+  endTime     String
+  eventName   String
+  notes       String?
+  isFixed     Boolean   @default(false)
+  color       String?
+  confidence  Float?
+  createdAt   DateTime  @default(now())
+
+  timetable   Timetable @relation(fields: [timetableId], references: [id], onDelete: Cascade)
+
+  @@index([timetableId])
+}
+
+model RecurringBlock {
+  id          String    @id @default(uuid())
+  timetableId String
+  startTime   String
+  endTime     String
+  eventName   String
+  appliesDaily Boolean  @default(true)
+  notes       String?
+  createdAt   DateTime  @default(now())
+
+  timetable   Timetable @relation(fields: [timetableId], references: [id], onDelete: Cascade)
+
+  @@index([timetableId])
+}
