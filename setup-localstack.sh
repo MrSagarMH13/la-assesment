@@ -7,7 +7,7 @@ echo "⏳ Waiting for LocalStack to be ready..."
 sleep 10
 
 ENDPOINT="http://localhost:4566"
-AWS_REGION="us-east-1"
+AWS_REGION="ap-south-1"
 
 echo "🪣 Creating S3 bucket..."
 aws --endpoint-url=$ENDPOINT s3 mb s3://timetable-uploads --region $AWS_REGION

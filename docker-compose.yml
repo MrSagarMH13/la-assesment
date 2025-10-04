@@ -44,7 +44,7 @@ services:
       - SERVICES=s3,sqs
       - DEBUG=1
       - DATA_DIR=/tmp/localstack/data
-      - AWS_DEFAULT_REGION=us-east-1
+      - AWS_DEFAULT_REGION=ap-south-1
     volumes:
       - localstack_data:/tmp/localstack
       - "/var/run/docker.sock:/var/run/docker.sock"
@@ -75,7 +75,7 @@ services:
       - DATABASE_URL=postgresql://timetable_user:timetable_password@postgres:5432/timetable_extraction
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - AWS_REGION=us-east-1
+      - AWS_REGION=ap-south-1
       - AWS_ACCESS_KEY_ID=test
       - AWS_SECRET_ACCESS_KEY=test
       - AWS_S3_BUCKET=timetable-uploads
@@ -118,7 +118,7 @@ services:
       - DATABASE_URL=postgresql://timetable_user:timetable_password@postgres:5432/timetable_extraction
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - AWS_REGION=us-east-1
+      - AWS_REGION=ap-south-1
       - AWS_ACCESS_KEY_ID=test
       - AWS_SECRET_ACCESS_KEY=test
       - AWS_S3_BUCKET=timetable-uploads
