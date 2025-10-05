@@ -1,5 +1,4 @@
 import Tesseract from 'tesseract.js';
-import pdf from 'pdf-parse';
 import mammoth from 'mammoth';
 import sharp from 'sharp';
 import fs from 'fs/promises';
@@ -62,7 +61,11 @@ export class FileProcessor {
    */
   private static async processPDF(filePath: string, mimeType: string, originalName: string): Promise<ProcessedFile> {
     const dataBuffer = await fs.readFile(filePath);
-    const pdfData = await pdf(dataBuffer);
+
+    // Use dynamic import for pdf-parse to avoid ESM issues
+    const pdfParse = await import('pdf-parse');
+    const pdf = pdfParse.default || pdfParse;
+    const pdfData = await (pdf as any)(dataBuffer);
 
     // For PDFs, we'll rely primarily on the vision API with the image
     // But we can use the text as a fallback

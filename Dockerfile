@@ -31,9 +31,14 @@ COPY package*.json ./
 COPY prisma ./prisma/
 RUN npm ci --only=production
 
+# Generate Prisma client in production stage
+RUN npx prisma generate
+
 # Copy built files from builder
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/src/generated ./src/generated
+
+# Create symlink for Prisma client so it's accessible from dist
+RUN ln -s /app/src/generated /app/dist/generated
 
 # Create uploads directory
 RUN mkdir -p uploads

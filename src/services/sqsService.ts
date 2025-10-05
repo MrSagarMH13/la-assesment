@@ -19,13 +19,20 @@ export class SQSService {
     this.queueUrl = process.env.AWS_SQS_QUEUE_URL || '';
     this.dlqUrl = process.env.AWS_SQS_DLQ_URL || '';
 
-    this.client = new SQSClient({
+    const config: any = {
       region: process.env.AWS_REGION || 'ap-south-1',
       credentials: {
         accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || ''
       }
-    });
+    };
+
+    // Use LocalStack endpoint for local development
+    if (process.env.AWS_ENDPOINT_URL) {
+      config.endpoint = process.env.AWS_ENDPOINT_URL;
+    }
+
+    this.client = new SQSClient(config);
   }
 
   /**

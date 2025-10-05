@@ -1,5 +1,5 @@
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+// import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -10,13 +10,21 @@ export class S3Service {
   constructor() {
     this.bucket = process.env.AWS_S3_BUCKET || 'timetable-uploads';
 
-    this.client = new S3Client({
+    const config: any = {
       region: process.env.AWS_REGION || 'ap-south-1',
       credentials: {
         accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || ''
       }
-    });
+    };
+
+    // Use LocalStack endpoint for local development
+    if (process.env.AWS_ENDPOINT_URL) {
+      config.endpoint = process.env.AWS_ENDPOINT_URL;
+      config.forcePathStyle = true; // Required for LocalStack
+    }
+
+    this.client = new S3Client(config);
   }
 
   /**
@@ -71,15 +79,51 @@ export class S3Service {
   }
 
   /**
+   * Download file from S3 to local path
+   */
+  async downloadFile(s3Url: string, localPath: string): Promise<void> {
+    try {
+      // Extract key from URL
+      const key = s3Url.split('/').slice(3).join('/');
+
+      const command = new GetObjectCommand({
+        Bucket: this.bucket,
+        Key: key
+      });
+
+      const response = await this.client.send(command);
+      const stream = response.Body as any;
+
+      // Convert stream to buffer and write to file
+      const chunks: Buffer[] = [];
+      for await (const chunk of stream) {
+        chunks.push(chunk);
+      }
+      const buffer = Buffer.concat(chunks);
+
+      await fs.writeFile(localPath, buffer);
+    } catch (error) {
+      throw new Error(`S3 download failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
    * Get pre-signed URL for temporary access
+   * Note: Requires @aws-sdk/s3-request-presigner package
    */
   async getSignedUrl(key: string, expiresIn: number = 3600): Promise<string> {
-    const command = new GetObjectCommand({
-      Bucket: this.bucket,
-      Key: key
-    });
+    // For now, return public URL (works if bucket is public)
+    // To enable signed URLs, install: npm install @aws-sdk/s3-request-presigner
+    // and uncomment the import at the top
 
-    return getSignedUrl(this.client, command, { expiresIn });
+    // const command = new GetObjectCommand({
+    //   Bucket: this.bucket,
+    //   Key: key
+    // });
+    // return getSignedUrl(this.client, command, { expiresIn });
+
+    // Return direct URL for now
+    return `https://${this.bucket}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
   }
 
   /**

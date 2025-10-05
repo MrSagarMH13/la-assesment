@@ -130,23 +130,34 @@ class ExtractionWorker {
     // Download file from S3 to temp location
     const tempPath = `/tmp/${jobData.jobId}-${jobData.originalFileName}`;
 
-    // For now, assume file is already in S3
-    // In production, download from S3, process, then cleanup
+    try {
+      // Download from S3
+      console.log(`Downloading file from S3: ${jobData.fileUrl}`);
+      await s3Service.downloadFile(jobData.fileUrl, tempPath);
 
-    // Process file (OCR, image prep)
-    const processedFile = await FileProcessor.processFile(
-      tempPath,
-      jobData.mimeType,
-      jobData.originalFileName
-    );
+      // Process file (OCR, image prep)
+      const processedFile = await FileProcessor.processFile(
+        tempPath,
+        jobData.mimeType,
+        jobData.originalFileName
+      );
 
-    // Run intelligent extraction
-    const result = await orchestrator.extract(processedFile, {
-      teacherName: jobData.teacherName,
-      className: jobData.className
-    });
+      // Run intelligent extraction
+      const result = await orchestrator.extract(processedFile, {
+        teacherName: jobData.teacherName,
+        className: jobData.className
+      });
 
-    return result;
+      return result;
+    } finally {
+      // Cleanup temp file
+      try {
+        const fs = require('fs').promises;
+        await fs.unlink(tempPath);
+      } catch (err) {
+        console.error('Cleanup error:', err);
+      }
+    }
   }
 
   /**
