@@ -52,7 +52,13 @@ export class ExtractionOrchestrator {
       const useClaudeFallback = process.env.USE_CLAUDE_FALLBACK === 'true';
       const useHybrid = process.env.USE_HYBRID_MODE === 'true';
 
-      if (complexity.recommendedMethod === 'document_ai' && useDocumentAI) {
+      // If Document AI is disabled, always use Claude regardless of complexity
+      if (!useDocumentAI) {
+        console.log('Document AI disabled, using Claude Vision...');
+        extractedData = await this.claude.extractTimetable(processedFile, metadata);
+        method = 'claude';
+
+      } else if (complexity.recommendedMethod === 'document_ai') {
         // Simple case: Document AI only
         console.log('Using Google Document AI (fast path)...');
         extractedData = await this.documentAI.extractTimetable(processedFile, metadata);
@@ -64,7 +70,7 @@ export class ExtractionOrchestrator {
         extractedData = await this.claude.extractTimetable(processedFile, metadata);
         method = 'claude';
 
-      } else if (complexity.recommendedMethod === 'hybrid' && useHybrid && useDocumentAI) {
+      } else if (complexity.recommendedMethod === 'hybrid' && useHybrid) {
         // Medium case: Hybrid (Document AI + Claude validation)
         console.log('Using hybrid extraction (Document AI + Claude validation)...');
 
@@ -81,8 +87,8 @@ export class ExtractionOrchestrator {
         }
 
       } else {
-        // Fallback: Use Claude if Document AI is disabled
-        console.log('Falling back to Claude...');
+        // Default fallback: Use Claude
+        console.log('Using Claude as default extraction method...');
         extractedData = await this.claude.extractTimetable(processedFile, metadata);
         method = 'claude_fallback';
       }
