@@ -2,6 +2,7 @@ import { ProcessedFile, FileProcessor } from '../utils/fileProcessor';
 import { ComplexityAnalyzer, ComplexityAnalysis } from './complexityAnalyzer';
 import { DocumentAIService } from './documentAIService';
 import { ClaudeService } from './claudeService';
+import { ExtractionValidator } from './extractionValidator';
 import { ExtractedData } from '../types/timetable';
 
 export interface ExtractionResult {
@@ -19,13 +20,19 @@ export interface ExtractionResult {
  */
 export class ExtractionOrchestrator {
   private complexityAnalyzer: ComplexityAnalyzer;
-  private documentAI: DocumentAIService;
+  private documentAI?: DocumentAIService;
   private claude: ClaudeService;
+  private validator: ExtractionValidator;
 
   constructor() {
     this.complexityAnalyzer = new ComplexityAnalyzer();
-    this.documentAI = new DocumentAIService();
     this.claude = new ClaudeService();
+    this.validator = new ExtractionValidator();
+
+    // Only instantiate Document AI if enabled and credentials available
+    if (process.env.USE_DOCUMENT_AI === 'true' && process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+      this.documentAI = new DocumentAIService();
+    }
   }
 
   /**
@@ -58,7 +65,7 @@ export class ExtractionOrchestrator {
         extractedData = await this.claude.extractTimetable(processedFile, metadata);
         method = 'claude';
 
-      } else if (complexity.recommendedMethod === 'document_ai') {
+      } else if (complexity.recommendedMethod === 'document_ai' && this.documentAI) {
         // Simple case: Document AI only
         console.log('Using Google Document AI (fast path)...');
         extractedData = await this.documentAI.extractTimetable(processedFile, metadata);
@@ -70,7 +77,7 @@ export class ExtractionOrchestrator {
         extractedData = await this.claude.extractTimetable(processedFile, metadata);
         method = 'claude';
 
-      } else if (complexity.recommendedMethod === 'hybrid' && useHybrid) {
+      } else if (complexity.recommendedMethod === 'hybrid' && useHybrid && this.documentAI) {
         // Medium case: Hybrid (Document AI + Claude validation)
         console.log('Using hybrid extraction (Document AI + Claude validation)...');
 
@@ -98,8 +105,19 @@ export class ExtractionOrchestrator {
       console.log(`Extraction completed in ${processingTime}ms`);
       console.log(`Extracted ${extractedData.blocks.length} time blocks`);
 
+      // Validate and fix timeline gaps/overlaps (but don't merge recurring blocks)
+      console.log('Validating timeline and filling gaps...');
+      const { data: validatedData, warnings: validationWarnings } = this.validator.validate(extractedData);
+
+      if (validationWarnings.length > 0) {
+        console.log(`Validation completed with ${validationWarnings.length} warnings/fixes`);
+        validationWarnings.forEach(w => console.log(`  - ${w.message}`));
+      }
+
+      console.log(`Final timeline: ${validatedData.blocks.length} time blocks`);
+
       return {
-        data: extractedData,
+        data: validatedData,
         method,
         complexity,
         processingTime

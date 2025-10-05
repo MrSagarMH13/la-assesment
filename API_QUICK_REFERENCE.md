@@ -29,6 +29,14 @@ curl http://localhost:3000/api/v2/timetable/jobs/{jobId}/result
 
 ---
 
+### 4️⃣ Get FullCalendar Format (NEW!)
+```bash
+curl "http://localhost:3000/api/v2/timetable/jobs/{jobId}/fullcalendar?format=recurring&termStart=2024-09-01&termEnd=2024-12-20"
+```
+**→ Returns FullCalendar-ready events for direct frontend integration**
+
+---
+
 ## 📋 All V2 Endpoints
 
 | Method | Endpoint | Description |
@@ -36,6 +44,7 @@ curl http://localhost:3000/api/v2/timetable/jobs/{jobId}/result
 | `POST` | `/api/v2/timetable/upload` | Upload timetable (async) |
 | `GET` | `/api/v2/timetable/jobs/:jobId` | Check job status |
 | `GET` | `/api/v2/timetable/jobs/:jobId/result` | **Get extracted JSON** ✨ |
+| `GET` | `/api/v2/timetable/jobs/:jobId/fullcalendar` | **Get FullCalendar format** 📅 |
 | `GET` | `/api/v2/timetable/jobs` | List all jobs (paginated) |
 | `POST` | `/api/v2/timetable/jobs/:jobId/webhook` | Register webhook |
 | `DELETE` | `/api/v2/timetable/jobs/:jobId` | Cancel pending job |

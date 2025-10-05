@@ -4,12 +4,15 @@ import { S3Service } from '../services/s3Service';
 import { SQSService } from '../services/sqsService';
 import { AppError } from '../middleware/errorHandler';
 import { PrismaClient } from '../generated/prisma';
+import { FullCalendarTransformer } from '../services/fullcalendarTransformer';
+import { ExtractedData } from '../types/timetable';
 import fs from 'fs/promises';
 
 const router = Router();
 const prisma = new PrismaClient();
 const s3Service = new S3Service();
 const sqsService = new SQSService();
+const fullcalendarTransformer = new FullCalendarTransformer();
 
 /**
  * POST /api/v2/timetable/upload
@@ -336,6 +339,95 @@ router.get('/jobs/:jobId/result', async (req: Request, res: Response, next: Next
 
   } catch (error) {
     next(error instanceof AppError ? error : new AppError(500, error instanceof Error ? error.message : 'Failed to get result'));
+  }
+});
+
+/**
+ * GET /api/v2/timetable/jobs/:jobId/fullcalendar
+ * Get extracted timetable in FullCalendar format
+ */
+router.get('/jobs/:jobId/fullcalendar', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { jobId } = req.params;
+    const { weekStart, termStart, termEnd, format = 'recurring' } = req.query;
+
+    const job = await prisma.extractionJob.findUnique({
+      where: { id: jobId },
+      include: {
+        timetable: {
+          include: {
+            timeBlocks: true,
+            recurringBlocks: true
+          }
+        }
+      }
+    });
+
+    if (!job) {
+      throw new AppError(404, 'Job not found');
+    }
+
+    if (job.status !== 'completed') {
+      throw new AppError(400, `Job is not completed yet. Current status: ${job.status}`);
+    }
+
+    if (!job.timetable) {
+      throw new AppError(404, 'Extraction result not found');
+    }
+
+    // Prepare extracted data for transformer
+    const extractedData: ExtractedData = {
+      blocks: job.timetable.timeBlocks.map(block => ({
+        day: block.day,
+        startTime: block.startTime,
+        endTime: block.endTime,
+        eventName: block.eventName,
+        notes: block.notes || undefined,
+        isFixed: block.isFixed,
+        color: block.color || undefined,
+        confidence: block.confidence || undefined
+      })),
+      recurringBlocks: job.timetable.recurringBlocks.map(block => ({
+        startTime: block.startTime,
+        endTime: block.endTime,
+        eventName: block.eventName,
+        appliesDaily: block.appliesDaily,
+        notes: block.notes || undefined
+      })),
+      metadata: {
+        teacherName: job.timetable.teacherName || undefined,
+        className: job.timetable.className || undefined,
+        term: job.timetable.term || undefined,
+        week: job.timetable.week || undefined
+      }
+    };
+
+    // Transform to FullCalendar format
+    const events = fullcalendarTransformer.transform(extractedData, {
+      weekStart: weekStart as string,
+      termStart: termStart as string,
+      termEnd: termEnd as string,
+      format: format as 'recurring' | 'explicit'
+    });
+
+    res.json({
+      success: true,
+      data: {
+        jobId: job.id,
+        events,
+        metadata: {
+          teacherName: job.timetable.teacherName,
+          className: job.timetable.className,
+          term: job.timetable.term,
+          week: job.timetable.week,
+          totalEvents: events.length,
+          format: format
+        }
+      }
+    });
+
+  } catch (error) {
+    next(error instanceof AppError ? error : new AppError(500, error instanceof Error ? error.message : 'Failed to transform to FullCalendar format'));
   }
 });
 

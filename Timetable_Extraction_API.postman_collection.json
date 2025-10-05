@@ -103,7 +103,44 @@
           "response": []
         },
         {
-          "name": "5. List All Jobs",
+          "name": "5. Get FullCalendar Format",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/timetable/jobs/{{jobId}}/fullcalendar?format=recurring&termStart=2024-09-01&termEnd=2024-12-20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v2", "timetable", "jobs", "{{jobId}}", "fullcalendar"],
+              "query": [
+                {
+                  "key": "format",
+                  "value": "recurring",
+                  "description": "Event format: 'recurring' or 'explicit'"
+                },
+                {
+                  "key": "termStart",
+                  "value": "2024-09-01",
+                  "description": "Term start date (ISO format)"
+                },
+                {
+                  "key": "termEnd",
+                  "value": "2024-12-20",
+                  "description": "Term end date (ISO format)"
+                },
+                {
+                  "key": "weekStart",
+                  "value": "2024-10-07",
+                  "description": "Week start date (for explicit format)",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Get timetable in FullCalendar-ready format with recurring or explicit events"
+          },
+          "response": []
+        },
+        {
+          "name": "6. List All Jobs",
           "request": {
             "method": "GET",
             "header": [],
@@ -141,7 +178,7 @@
           "response": []
         },
         {
-          "name": "6. Register Webhook",
+          "name": "7. Register Webhook",
           "request": {
             "method": "POST",
             "header": [
@@ -164,7 +201,7 @@
           "response": []
         },
         {
-          "name": "7. Cancel Job",
+          "name": "8. Cancel Job",
           "request": {
             "method": "DELETE",
             "header": [],
