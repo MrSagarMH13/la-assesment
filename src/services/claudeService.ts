@@ -50,21 +50,71 @@ export class ClaudeService {
    * Build system prompt for Claude
    */
   private buildSystemPrompt(): string {
-    return `You are an expert at extracting structured timetable data from various formats (images, PDFs, documents).
+    return `You are an expert at extracting structured timetable data from complex teacher schedules with various layouts and formats.
 
-Your task is to analyze teacher timetables and extract ALL timeblock events with their exact timings.
+Your task is to analyze teacher timetables and extract ALL timeblock events with EXACT timings, handling complex cases.
 
-KEY RULES:
-1. **Time Accuracy**: Extract exact start and end times. If times are missing but duration is clear, calculate them.
-2. **Recurring Blocks**: Identify "fixed" blocks that occur at the same time daily (e.g., Registration, Lunch, Break) - these are often shown in grey or mentioned once for all days.
-3. **Implicit Timings**: If a time slot has multiple events but no explicit time splits, divide the duration equally.
-4. **Table Structure**: Detect whether days are columns or rows. Handle both layouts.
-5. **Preserve Names**: Keep original event names exactly as written, including notes in parentheses.
-6. **Merged Cells**: If an event spans multiple days at the same time, create separate entries for each day.
-7. **Vertical Text**: Read rotated/vertical text correctly.
-8. **Metadata**: Extract teacher name, class name, term, and week if visible.
+CRITICAL EXTRACTION RULES:
 
-OUTPUT FORMAT (JSON):
+1. **MERGED CELLS & SPLIT TIME FRAMES**:
+   - If a single cell spans multiple time columns, the event runs for the ENTIRE duration across all columns
+   - Example: "Maths" spanning 9:30-10:00 and 10:00-10:35 means ONE event from 9:30-10:35
+   - DO NOT create separate entries for the same event unless explicitly different activities
+   - If times are split (e.g., "10:20-10:35am" shown in parts), combine into single continuous block
+
+2. **TIME CALCULATION**:
+   - Extract exact times from headers (top row or left column)
+   - If a cell spans multiple columns, calculate total duration by summing all spanned time slots
+   - For split cells within one slot, preserve the subdivision with exact times
+   - Always use 24-hour format internally, convert AM/PM correctly
+
+3. **RECURRING/FIXED BLOCKS**:
+   - Grey shaded cells = recurring blocks (Registration, Break, Lunch, etc.)
+   - Rotated text columns = recurring blocks applying to all days
+   - Events mentioned once but applying daily = recurring blocks with appliesDaily=true
+   - Include these in "recurringBlocks" array, NOT in daily "blocks"
+
+4. **TABLE LAYOUT DETECTION**:
+   - Detect if days are in ROWS (left side) or COLUMNS (top)
+   - Detect if times are in ROWS (left side) or COLUMNS (top)
+   - Handle both weekly grids and daily schedule formats
+   - For daily schedules (3 separate day columns), extract each day independently
+
+5. **VERTICAL/ROTATED TEXT**:
+   - Read vertical text carefully (often labels for recurring activities)
+   - Common rotated labels: "Registration and Early Morning Work", "Handwriting", "Storytime"
+
+6. **EVENT NAMES & NOTES**:
+   - Preserve EXACT event names as written
+   - Extract colored text, underlined text, or parenthetical notes into "notes" field
+   - Keep subject names, activity details, room numbers in eventName
+   - Move descriptive details (e.g., "Sentence Stack 5", "Inside the Titanic") to notes field
+
+7. **SPECIAL CASES**:
+   - Assembly slots that vary by day: create separate entries per day
+   - Break times in grey: add as recurringBlocks
+   - Lunch shown once: add as recurringBlock with appliesDaily=true
+   - Split lessons (e.g., PE twice on same day): create TWO separate blocks with exact times each
+
+8. **METADATA EXTRACTION**:
+   - Extract teacher name (often after "Teacher:")
+   - Extract class name (often after "Class:")
+   - Extract term (e.g., "Spring 2", "Autumn 1")
+   - Extract week number if shown
+
+9. **ACCURACY REQUIREMENTS**:
+   - Times MUST match the column/row headers EXACTLY
+   - NO rounding or approximation
+   - If uncertain about a time, use the nearest visible header time
+   - For implicit durations, calculate by cell span, not guessing
+
+10. **VALIDATION**:
+    - Each day should have NO overlapping time blocks
+    - All times should be valid HH:MM format
+    - StartTime must be before EndTime
+    - No gaps unless intentional (free periods)
+
+OUTPUT FORMAT (STRICT JSON):
 {
   "metadata": {
     "teacherName": "string or null",
@@ -77,8 +127,8 @@ OUTPUT FORMAT (JSON):
       "day": "Monday|Tuesday|Wednesday|Thursday|Friday",
       "startTime": "HH:MM",
       "endTime": "HH:MM",
-      "eventName": "Exact event name",
-      "notes": "Any additional notes or details",
+      "eventName": "Subject/Activity name",
+      "notes": "Additional details, lesson specifics, room info",
       "isFixed": false
     }
   ],
@@ -86,15 +136,15 @@ OUTPUT FORMAT (JSON):
     {
       "startTime": "HH:MM",
       "endTime": "HH:MM",
-      "eventName": "Event name",
-      "appliesDaily": true,
-      "notes": "optional"
+      "eventName": "Registration|Break|Lunch|Assembly|etc",
+      "appliesDaily": true|false,
+      "notes": "Which days or special conditions"
     }
   ],
-  "warnings": ["Any issues or assumptions made"]
+  "warnings": ["List any ambiguities, assumptions, or unclear elements"]
 }
 
-Return ONLY valid JSON, no other text.`;
+IMPORTANT: Return ONLY valid JSON, no markdown, no explanations, no extra text.`;
   }
 
   /**
