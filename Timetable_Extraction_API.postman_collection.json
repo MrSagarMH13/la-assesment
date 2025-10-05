@@ -1,0 +1,264 @@
+{
+  "info": {
+    "name": "Timetable Extraction API",
+    "description": "AI-powered timetable extraction system with async processing",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "V2 - Async API (Recommended)",
+      "item": [
+        {
+          "name": "1. Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/timetable/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v2", "timetable", "health"]
+            },
+            "description": "Check API health and available features"
+          },
+          "response": []
+        },
+        {
+          "name": "2. Upload Timetable (Async)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Save jobId to environment variable for next requests",
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.success && jsonData.data.jobId) {",
+                  "        pm.environment.set('jobId', jsonData.data.jobId);",
+                  "        console.log('Job ID saved:', jsonData.data.jobId);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "teacherName",
+                  "value": "Miss Joynes",
+                  "type": "text"
+                },
+                {
+                  "key": "className",
+                  "value": "2EJ",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/timetable/upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v2", "timetable", "upload"]
+            },
+            "description": "Upload timetable file for async processing. Returns job ID immediately."
+          },
+          "response": []
+        },
+        {
+          "name": "3. Get Job Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/timetable/jobs/{{jobId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v2", "timetable", "jobs", "{{jobId}}"]
+            },
+            "description": "Check the status of an extraction job. Status: pending → processing → completed/failed"
+          },
+          "response": []
+        },
+        {
+          "name": "4. Get Extraction Result (JSON)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/timetable/jobs/{{jobId}}/result",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v2", "timetable", "jobs", "{{jobId}}", "result"]
+            },
+            "description": "Get the extracted timetable JSON result (only available when status is 'completed')"
+          },
+          "response": []
+        },
+        {
+          "name": "5. List All Jobs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/timetable/jobs?page=1&limit=20&status=completed",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v2", "timetable", "jobs"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Results per page"
+                },
+                {
+                  "key": "status",
+                  "value": "completed",
+                  "description": "Filter by status (pending/processing/completed/failed)",
+                  "disabled": true
+                },
+                {
+                  "key": "userId",
+                  "value": "",
+                  "description": "Filter by user ID",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "List all extraction jobs with pagination and filtering"
+          },
+          "response": []
+        },
+        {
+          "name": "6. Register Webhook",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"https://your-webhook-url.com/callback\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/timetable/jobs/{{jobId}}/webhook",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v2", "timetable", "jobs", "{{jobId}}", "webhook"]
+            },
+            "description": "Register a webhook URL to be notified when job completes"
+          },
+          "response": []
+        },
+        {
+          "name": "7. Cancel Job",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v2/timetable/jobs/{{jobId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v2", "timetable", "jobs", "{{jobId}}"]
+            },
+            "description": "Cancel a pending job (only if status is 'pending')"
+          },
+          "response": []
+        }
+      ],
+      "description": "V2 API with async processing using SQS queue (Production)"
+    },
+    {
+      "name": "V1 - Sync API (Legacy)",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/timetable/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "timetable", "health"]
+            },
+            "description": "Check V1 API health"
+          },
+          "response": []
+        },
+        {
+          "name": "Upload Timetable (Sync)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "teacherName",
+                  "value": "Miss Smith",
+                  "type": "text"
+                },
+                {
+                  "key": "className",
+                  "value": "Year 2",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/timetable/upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "timetable", "upload"]
+            },
+            "description": "Synchronous upload - waits for extraction to complete (may timeout on large files)"
+          },
+          "response": []
+        }
+      ],
+      "description": "V1 API with synchronous processing (Legacy - not recommended for production)"
+    },
+    {
+      "name": "Root",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/",
+          "host": ["{{baseUrl}}"],
+          "path": [""]
+        },
+        "description": "Get API information and available endpoints"
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "jobId",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

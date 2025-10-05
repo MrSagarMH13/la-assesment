@@ -281,6 +281,65 @@ router.post('/jobs/:jobId/webhook', async (req: Request, res: Response, next: Ne
 });
 
 /**
+ * GET /api/v2/timetable/jobs/:jobId/result
+ * Get extracted timetable JSON result
+ */
+router.get('/jobs/:jobId/result', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { jobId } = req.params;
+
+    const job = await prisma.extractionJob.findUnique({
+      where: { id: jobId },
+      include: {
+        timetable: {
+          include: {
+            timeBlocks: true,
+            recurringBlocks: true
+          }
+        }
+      }
+    });
+
+    if (!job) {
+      throw new AppError(404, 'Job not found');
+    }
+
+    if (job.status !== 'completed') {
+      throw new AppError(400, `Job is not completed yet. Current status: ${job.status}`);
+    }
+
+    if (!job.timetable) {
+      throw new AppError(404, 'Extraction result not found');
+    }
+
+    res.json({
+      success: true,
+      data: {
+        jobId: job.id,
+        status: job.status,
+        processingMethod: job.processingMethod,
+        complexity: job.complexity,
+        completedAt: job.completedAt,
+        result: {
+          timetableId: job.timetable.id,
+          metadata: {
+            teacherName: job.timetable.teacherName,
+            className: job.timetable.className,
+            term: job.timetable.term,
+            week: job.timetable.week
+          },
+          timeBlocks: job.timetable.timeBlocks,
+          recurringBlocks: job.timetable.recurringBlocks
+        }
+      }
+    });
+
+  } catch (error) {
+    next(error instanceof AppError ? error : new AppError(500, error instanceof Error ? error.message : 'Failed to get result'));
+  }
+});
+
+/**
  * DELETE /api/v2/timetable/jobs/:jobId
  * Cancel pending job (if not yet processing)
  */
