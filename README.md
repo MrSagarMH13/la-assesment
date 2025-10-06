@@ -2,6 +2,10 @@
 
 An AI-powered system for extracting structured timetable data from teacher timetables in various formats (images, PDFs, DOCX). Built with Node.js, TypeScript, Claude AI, and OCR technologies.
 
+## 📹 Project Explanation
+
+Watch the full project walkthrough: [Loom Video Explanation](https://www.loom.com/share/9c175035ecbc4cbabb4b057ae70784fa?sid=cbe9e426-1e81-458a-999e-85bb75d303e0)
+
 ## 🎯 Overview
 
 This system allows teachers to upload their timetables in any format and automatically extracts:
